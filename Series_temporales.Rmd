@@ -1,0 +1,161 @@
+---
+title: "Series de tiempo"
+author: "Sol Represa"
+date: "26 de abril de 2018"
+output: html_document
+---
+
+```{r, include=FALSE}
+library(ggplot2)
+library(reshape2)
+library(corrplot)
+library(tseries)
+
+```
+
+Una serie tiempo es una secuencia de observaciones, medidos en determinados momentos del tiempo,
+ordenados cronológicamente y, espaciados entre sí de manera uniforme, así los datos usualmente son
+dependientes entre sí. Su análisis se utiliza en gran medida para realizar predicciones.
+
+## Componentes de una serie temporal
+El análisis clásico de las series temporales se basa en la suposición de que los valores que toma la
+variable de observación es la consecuencia de tres componentes, cuya actuación conjunta da como
+resultado los valores medidos, estos componentes son:
+
+* **Componente tendencia**.- Se puede definir como un cambio a largo plazo que se produce en la
+relación al nivel medio, o el cambio a largo plazo de la media. La tendencia se identifica con un
+movimiento suave de la serie a largo plazo.
+
+* **Componente estacional**.- Muchas series temporales presentan cierta periodicidad o dicho de
+otro modo, variación de cierto período (semestral, mensual, etc.). Por ejemplo las Ventas al Detalle
+en Puerto Rico aumentan por los meses de noviembre y diciembre por las festividades navideñas.
+Estos efectos son fáciles de entender y se pueden medir explícitamente o incluso se pueden eliminar
+de la serie de datos, a este proceso se le llama desestacionalización de la serie.
+
+* **Componente aleatoria**.- Esta componente no responde a ningún patrón de comportamiento,
+sino que es el resultado de factores fortuitos o aleatorios que inciden de forma aislada en una serie
+de tiempo.
+
+```{r, include=FALSE }
+tabla <- read.csv2("E:\\sensores\\data_1.csv", sep=";", dec = ".", na.strings = "null")
+tabla$Time <- as.character(tabla$Time)
+tabla$Time <- as.POSIXlt(paste(substr(tabla$Time,1,10 ),  substr(tabla$Time,12,19 )))
+names(tabla) <- c("Series", "Time", "Value")
+levels(tabla$Series) <- c("humedad", "pm10_sds011", "pm10_sds021", 
+                          "pm25_ppd42", "pm25_sds011", "pm25_sds021", "temperatura")
+tabla2 <- dcast(tabla, Time ~ Series)
+tabla2_comp <- tabla2[complete.cases(tabla2[,2:8]),]
+
+
+y <- tabla2_comp$pm25_sds021
+d.y <- diff(tabla2_comp$pm25_sds021) #obtiene la diferencia con lag=1
+t <- tabla2_comp$Time
+
+```
+
+## Método Box-Jenkins
+
+Box-Jenkins refers to the entire approach of analysis of Time series that is.
+
+1) Analisis de estacionariedad  (Test Dickey-Fuller) 
+2) Selección del modelo (AFC, PACF, Box Ljung test) 
+3) Estimación de parámetros 
+4) Análsisi de los residuos estandar (should be indipendent)
+
+### Analisis de estacionariedad
+
+Una serie es estacionaria cuando es estable a lo largo del tiempo, es decir, cuando la media y varianza son constantes en el tiempo. Esto se refleja gráficamente en que los valores de la serie tienden a oscilar alrededor de una media constante y la variabilidad con respecto a esa media también permanece constante en el tiempo.
+
+Para el análisis de estacionariedad utilizamos el **Test Dickey-Fuller**. 
+Podemos evaluar también si los datos presentan un comportamiento explosivo.
+
+```{r}
+# Test Dickey-Fuller
+adf.test(y, alternative = "stationary", k=0) # p<0.05 es estacionario
+adf.test(y, alternative = "explosive", k=0) # p>0.05 no es explosivo, es estacionario
+
+```
+
+### Identificación del modelo
+
+Cuando se construye un modelo de series temporales univariante el objetivo no es conseguir el “verdadero” modelo. Es preciso ser conscientes de que estamos tratando de modelar una realidad compleja y el objetivo es lograr un modelo parsimonioso y suficientemente preciso que represente adecuadamente las características de la serie recogidas fundamentalmente en la función de autocorrelación. Los modelos ARMA(p, q), AR(p) y MA(q) son aproximaciones al modelo lineal general. 
+
+
+#### Ruido blanco ("white noise")
+
+Un ruido blanco es un caso simple de los procesos estocásticos, donde los valores son independientes e
+idénticamente distribuidos a lo largo del tiempo con media cero e igual varianza, se denota por $\epsilon_t$.
+
+$$\epsilon_t\sim N(0,\sigma²) $$ 
+$$cov(\epsilon_{t_i},\epsilon_{t_j}= 0)$$
+$$ \forall t_i \neq t_j $$
+
+#### Autocorrelación
+
+En ocasiones en una serie de tiempo acontece, que los valores que toma una variable en el tiempo no
+son independientes entre sí, sino que un valor determinado depende de los valores anteriores, existen
+dos formas de medir esta dependencia de las variables.
+
+##### *Función de Autocorrelación (ACF)*
+
+La autocorrelación mide la correlación entre dos variables separadas por k periodos.
+
+$$\rho_j=corr(X_j, X_{j-k})=\frac{cov(X_j, X_{j-k})}{\sqrt{var(X_j)}\sqrt{var(X_{j-k})}}$$
+La función de autocorrelación simple tiene las siguientes propiedades:
+
+$$\rho_0 = 1$$
+$$-1 \leq \rho \leq 1 $$
+$$\rho_j = \rho_{-j}$$
+```{r , echo=FALSE}
+# Evaluamos la función de autocorrelación y la función de autocorrelación parcial. 
+# Decidimos el modelo que utilizaremos a partir de la significancia de los retardos (lag).
+
+acf(y) 
+# tenemos varios procesos significativos (por encima de la linea azul)
+# 1, 2 desfase son significativos, también el 12 y el 18
+# Un término autorregresivo en los datos. Podemos tener 2 terminos autoregresivos (primeros 2 picos) - AR(2), donde el primero es mayor a cero, y el segundo menor 
+# Tb podemos tener un termino de promedio movil
+
+acf(d.y)
+#Las líneas punteadas indican el grado de significancia.
+
+```
+
+##### *Función de Autocorrelación Parcial (PACF)*
+
+La autocorrelación parcial mide la correlación entre dos variables separadas por k periodos cuando no se
+considera la dependencia creada por los retardos intermedios existentes entre ambas.
+
+$$\pi_j = \frac{cov(X_j-\hat{X}_j, X_{j-k}-\hat{X}_{j-k})}{\sqrt{var(X_j-\hat{X}_j)}\sqrt{var(X_{j-k}-\hat{X}_{j-k})}}$$
+
+
+
+```{r pressure, echo=FALSE}
+# Evaluamos la función de autocorrelación y la función de autocorrelación parcial. 
+# Decidimos el modelo que utilizaremos a partir de la significancia de los retardos (lag).
+
+pacf(y)  #tenemos varios procesos significativos (por encima de la linea azul)
+pacf(d.y) #Las líneas punteadas indican el grado de significancia.
+
+```
+
+##### *Prueba de Ljung-Box*
+
+Esta prueba permite probar en forma conjunta de que todos los coeficientes de autocorrelación son
+simultáneamente iguales a cero, esto es que son independientes, está definida como
+
+$$ LB = n(n+2) \sum_{k=1}^m(\frac{\hat{\rho}_k²}{n-k} \sim \chi_{(m)}^2)$$
+donde *n* es el tamaño de la muestra y *m* la longitud del rezago.
+
+**Ho**: Las autocorrelaciones son independientes.
+
+**Ha**: Las autocorrelaciones no son independientes.
+
+En una aplicación, si el *Q* calculada excede el valor *Q* crítico de la tabla $\chi^2$ cuadrada al nivel de significancia seleccionado, no se acepta la hipótesis nula de que todos los coeficientes de autocorrelación son iguales a cero; por lo menos algunos de ellos deben ser diferentes de cero.
+
+```{r}
+Box.test(y,lag=2,type="Ljung-Box") #check autocorrelation
+#auto.arfima(y) #perform lot of precedeing task automatically
+
+```
+
