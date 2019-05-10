@@ -9,7 +9,7 @@ Esta lista se encuentra en desarrollo. Se agradece la colaboración.
 Sitio oficial donde se publican los datos de la Administración Pública Nacional
 
 * [IDERA](http://www.idera.gob.ar/)
-Sitio oficial Infraestructura de Datos Espaciales de la República Argentina
+Sitio oficial Infraestructura de Datos Espaciales de la República Argentina.
 Geoservicios: [AQUI](https://www.idera.gob.ar/index.php?option=com_content&view=article&id=335:geoservicios&catid=33:services&Itemid=302)
 
 * [INDEC](https://www.indec.gob.ar/)
@@ -28,7 +28,7 @@ Sitio Oficial del Ministerio de Transporte
 Sitio Oficial del Ministerio del Ministerio de Producción y Trabajo
 
 * [Escuelas rurales conectadas](https://datosgobar.github.io/escuelas-rurales-conectadas/)
-Programa ARSAT
+Programa ARSAT.
 Descarga: [AQUI](https://datos.gob.ar/dataset/arsat-escuelas-conectadas-con-tecnologia-gilat)
 
 * [Mapa educacion nacional](http://mapa.educacion.gob.ar/)
